@@ -1,6 +1,6 @@
 const express = require('express');
-const mongoose = require('mongoose');
 const bodyParser = require('body-parser');
+const admin = require('firebase-admin');
 const cors = require('cors');
 require('dotenv').config();
 
@@ -24,15 +24,15 @@ app.get('/posts', (req, res) => {
     res.send('We are on posts!');
 });
 
-// Conect to DB
-const options = {
-    useNewUrlParser: true,
-    useCreateIndex: true,
-    useUnifiedTopology: true,
-  };
-mongoose.connect(process.env.MONGODB_URI, options, () => {
-    console.log('Connected to the Sprout DataBase!');
-});
+// Conect to Firebase
+// const serviceAccount = require(process.env.SERVICE_ACCOUNT_CREDS);
+
+// admin.initializeApp({
+//   credential: admin.credential.cert(serviceAccount),
+//   databaseURL: "https://sprout-the-garden-companion.firebaseio.com"
+// });
+
+// const db = admin.firestore();
 
 // START SERVER
-app.listen(process.env.PORT);
+app.listen(process.env.PORT, console.log(`Listening on port ${process.env.PORT}`));

@@ -1,12 +1,30 @@
 const express = require('express');
 const router = express.Router();
-const Sprout = require('../models/Sprout');
+const admin = require('firebase-admin');
+
+const serviceAccount = require(`../${process.env.SERVICE_ACCOUNT_CREDS}`);
+
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount),
+  databaseURL: "https://sprout-the-garden-companion.firebaseio.com"
+});
+
+const db = admin.firestore();
 
 // GET all plants
 router.get('/', async (req, res) => {
     try {
-        const plants = await Sprout.find();
-        res.json(plants);
+        const plantRef = db.collection('Plants');
+        const snapshot = await plantRef.get();
+        let sendMe;
+        snapshot.forEach(doc => {
+            console.log(doc.id, '=>', doc.data());
+            const id = doc.id;
+            const data = doc.data();
+            sendMe = { ...sendMe, [id]: data }
+        });
+        console.log(sendMe);
+        res.json(sendMe);        
     } catch(err) {
         res.json({ message: err });
     }
@@ -14,17 +32,15 @@ router.get('/', async (req, res) => {
 
 // Submit a plant
 router.post('/', async (req, res) => {
-    const plant = new Sprout({
-        name: req.body.name,
-        description: req.body.description,
-        care: req.body.care,
-        varieties: req.body.varieties,
-        favs: req.body.favs
-    });
-
     try {
-        const savedPlant = await plant.save()
-        res.json(savedPlant);
+        const plantRef = db.collection('Plants');
+        console.log(req.body);
+        await plantRef.doc(req.body.name).set({
+            care: req.body.care,
+            description: req.body.description
+        });
+        const newPlant = await plantRef.doc(req.body.name).get();
+        res.json({ [newPlant.id]: newPlant.data() });
     } catch(err) {
         res.json({ message: err });
     }
@@ -41,19 +57,21 @@ router.get('/:plantId', async (req, res) => {
 });
 
 // UPDATE a plant
-router.patch('/:plantId', async (req, res) => {
+router.patch('/:plantName', async (req, res) => {
     try {
-        console.log("Update Body -> ", req.body);
-        const updatedPlant = await Sprout.updateOne(
-            { _id: req.params.plantId }, 
-            { $set: {
-                name: req.body.name,
-                description: req.body.description,
-                care: req.body.care,
-                varieties: req.body.varieties
-            }}
-        );
-        res.json(updatedPlant);
+        const plantRef = db.collection('Plants');
+        if (req.body.care) {
+            await plantRef.doc(req.params.plantName).set({
+                care: req.body.care
+            }, { merge: true } );
+        }
+        if (req.body.description) {
+            await plantRef.doc(req.params.plantName).set({
+                description: req.body.description
+            }, { merge: true } );
+        }
+        const updatedPlant = await plantRef.doc(req.params.plantName).get();
+        res.json(updatedPlant.data());
     } catch(err) {
         res.json({ message: err });
     }
